@@ -7,10 +7,10 @@ $db = new Database("localhost", "root", "", "whoisdb");
 
 //Get the last record from DB
 $currentIp = "";
-$query = "SELECT to FROM ranges ORDER BY id DESC LIMIT 1";
+$query = "SELECT `to` FROM ranges ORDER BY id DESC LIMIT 1";
 if($db->Query($query)){
 	if($db->getNumRows()){
-		$row = $db->loadArray();
+		$row = $db->fetcharray();
 		$currentIp = long2ip($row['to']);
 	}
 }
