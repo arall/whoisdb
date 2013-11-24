@@ -16,7 +16,7 @@ if($db->Query($query)){
 }
 //Start from the beginning
 if(!$currentIp){
-	$currentIp = "1.1.1.1";
+	$currentIp = "1.0.0.0";
 }
 
 //Start
@@ -24,28 +24,31 @@ whois($currentIp);
 
 function whois($ip){
 	global $db;
-	echo " [+] Grabbing IP ".$ip."...";
+	echo " [+] Grabbing IP ".$ip."\t\t";
 	//Whois
 	$result = shell_exec("whois ".$ip);
-	$netname = trim(get_between($result, "netname:", "\n"));
-	$descr = trim(get_between($result, "descr:", "\n"));
-	$inetnum = trim(get_between($result, "inetnum:", "\n"));
-	if($inetnum){
-		echo $inetnum."\n";
-		//Parsing data
-		$range = explode(" - ", $inetnum);
-		$from = ip2long($range[0]);
-		$to = ip2long($range[1]);
-		//Insert record
-		$query = "INSERT INTO ranges (`from`, `to`, `netname`, `descr`, `date`) VALUES 
-		('".$from."', '".$to."', 
-		'".mysql_real_escape_string($netname)."', 
-		'".mysql_real_escape_string($descr)."', NOW());";
-		$db->query($query);
-		$nextIp = long2ip($to+1);
+	if($result){
+		$netname = trim(get_between($result, "netname:", "\n"));
+		$descr = trim(get_between($result, "descr:", "\n"));
+		$inetnum = trim(get_between($result, "inetnum:", "\n"));
+		if($inetnum){
+			echo $inetnum."\n";
+			//Parsing data
+			$range = explode(" - ", $inetnum);
+			$from = ip2long($range[0]);
+			$to = ip2long($range[1]);
+			//Insert record
+			$query = "INSERT INTO ranges (`from`, `to`, `netname`, `descr`, `date`) VALUES 
+			('".$from."', '".$to."', 
+			'".mysql_real_escape_string($netname)."', 
+			'".mysql_real_escape_string($descr)."', NOW());";
+			$db->query($query);
+			$nextIp = long2ip($to+1);
+		}else{
+			die(" Rang not found!\n");
+		}
 	}else{
-		echo "Rang not found!\n";
-		$nextIp = long2ip(ip2long($ip+1));
+		die(" Empty result!\n");
 	}
 	whois($nextIp);
 }
