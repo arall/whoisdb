@@ -31,21 +31,33 @@ function whois($ip){
 		$netname = trim(get_between($result, "netname:", "\n"));
 		$descr = trim(get_between($result, "descr:", "\n"));
 		$inetnum = trim(get_between($result, "inetnum:", "\n"));
+		if(!$inetnum){
+			$inetnum = trim(get_between($result, "NetRange:", "\n"));
+		}
 		if($inetnum){
-			echo $inetnum."\n";
+			echo $inetnum."\t\t".$netname."\n";
 			//Parsing data
 			$range = explode(" - ", $inetnum);
 			$from = ip2long($range[0]);
 			$to = ip2long($range[1]);
+			//Insert record
+			$query = "INSERT INTO ranges (`from`, `to`, `netname`, `descr`, `found`, `date`) VALUES 
+			('".$from."', '".$to."', 
+			'".mysql_real_escape_string($netname)."', 
+			'".mysql_real_escape_string($descr)."', 1, NOW());";
+			$db->query($query);
+			$nextIp = long2ip($to+1);
+		}else{
+			$from = ip2long($ip);
+			$to = ip2long($ip)+256;
 			//Insert record
 			$query = "INSERT INTO ranges (`from`, `to`, `netname`, `descr`, `date`) VALUES 
 			('".$from."', '".$to."', 
 			'".mysql_real_escape_string($netname)."', 
 			'".mysql_real_escape_string($descr)."', NOW());";
 			$db->query($query);
-			$nextIp = long2ip($to+1);
-		}else{
-			die(" Rang not found!\n");
+			$nextIp = long2ip($to);
+			echo "! ".$ip." - ".$nextIp."\t\t".$netname."\n";
 		}
 	}else{
 		die(" Empty result!\n");
@@ -55,10 +67,10 @@ function whois($ip){
 
 function get_between($string,$start,$end){
 	$string = " ".$string;
-	$ini = strpos($string, $start);
+	$ini = strpos(strtoupper($string), strtoupper($start));
 	if($ini==0) return "";
 	$ini += strlen($start);
-	$len = strpos($string, $end, $ini) - $ini;
+	$len = strpos(strtoupper($string), strtoupper($end), $ini) - $ini;
 	return substr($string, $ini, $len);
 }
 
