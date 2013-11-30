@@ -7,11 +7,11 @@ $db = new Database("localhost", "root", "", "whoisdb");
 
 //Get the last record from DB
 $currentIp = "";
-$query = "SELECT `to` FROM ranges ORDER BY id DESC LIMIT 1";
+$query = "SELECT `to` FROM ranges ORDER BY `to` DESC LIMIT 1";
 if($db->Query($query)){
 	if($db->getNumRows()){
 		$row = $db->fetcharray();
-		$currentIp = long2ip($row['to']);
+		$currentIp = long2ip($row['to']+1);
 	}
 }
 //Start from the beginning
@@ -24,45 +24,107 @@ whois($currentIp);
 
 function whois($ip){
 	global $db;
+	//Reserved
+	$ipn = ip2long($ip);
+	if($ipn>=ip2long("10.0.0.0") && $ipn<=ip2long("10.255.255.255")) $ip = "11.0.0.0";
+	if($ipn>=ip2long("100.64.0.0") && $ipn<=ip2long("100.127.255.255")) $ip = "100.128.0.0";
+	if($ipn>=ip2long("127.0.0.0") && $ipn<=ip2long("127.255.255.255")) $ip = "128.0.0.0";
+	if($ipn>=ip2long("169.254.0.0") && $ipn<=ip2long("169.254.254.255")) $ip = "169.254.255.0";
+	if($ipn>=ip2long("172.16.0.0") && $ipn<=ip2long("172.31.255.255")) $ip = "172.32.0.0";
+	if($ipn>=ip2long("192.0.0.0") && $ipn<=ip2long("192.0.0.7")) $ip = "192.0.0.8";
+	if($ipn>=ip2long("192.0.2.0") && $ipn<=ip2long("192.0.2.255")) $ip = "192.0.3.0";
+	if($ipn>=ip2long("192.88.99.0") && $ipn<=ip2long("192.88.99.255")) $ip = "192.88.100.0";
+	if($ipn>=ip2long("192.168.0.0") && $ipn<=ip2long("192.168.255.255")) $ip = "192.169.0.0";
+	if($ipn>=ip2long("198.18.0.0") && $ipn<=ip2long("198.19.255.255")) $ip = "198.20.0.0";
+	if($ipn>=ip2long("198.51.100.0") && $ipn<=ip2long("198.51.100.255")) $ip = "198.51.101.0";
+	if($ipn>=ip2long("203.0.113.0") && $ipn<=ip2long("203.0.113.255")) $ip = "203.0.114.0";
+	if($ipn>=ip2long("224.0.0.0") && $ipn<=ip2long("239.255.255.255")) $ip = "234.0.0.0";
+	if($ipn>=ip2long("240.0.0.0")) die("\nFinished!\n");
+	//Crazy IP's that have crazy results...
+	if($ipn==ip2long("129.0.0.0")) $ip = "130.0.0.0";
+	//All fine here
 	echo " [+] Grabbing IP ".$ip."\t\t";
 	//Whois
-	$result = shell_exec("whois ".$ip);
+	do{
+		$result = shell_exec("whois ".$ip);
+	}while(!$result);
+	//Got result?
 	if($result){
-		$netname = trim(get_between($result, "netname:", "\n"));
-		$descr = trim(get_between($result, "descr:", "\n"));
-		$inetnum = trim(get_between($result, "inetnum:", "\n"));
-		if(!$inetnum){
-			$inetnum = trim(get_between($result, "NetRange:", "\n"));
+		//Banned
+		if(strstr($result, "access denied for")){
+			die("IP Banned!\n");
+		//Record not found
+		}elseif(strstr($result, "No match") || strstr($result, "Cannot currently process")){
+			echo "No match found\n";
+			$nextIp = long2ip(ip2long($ip)+65536);
+			//Omiting...
+			whois($nextIp);
+		//Else
+		}else{
+			$netname = trim(get_between($result, "netname:", "\n"));
+			$descr = trim(get_between($result, "descr:", "\n"));
+			$inetnum = trim(get_between($result, "inetnum:", "\n"));
+			//Strange Whois
+			if(!$inetnum){
+				//NetRange Fix
+				if(strstr($result, "NetRange:")){
+					$inetnum = trim(get_between($result, "NetRange:", "\n"));
+				//Fucking Korea wierd output
+				}elseif(strstr($result, "IPv4 Address")){
+					$inetnum = trim(get_between($result, "IPv4 Address       : ", " ("));
+				}
+			}
 		}
+		//XXX.XXX/16
+		if(strstr($inetnum, "/")){
+			$tmp = explode("/", $inetnum);
+			$i = str_replace("/".$tmp[1], str_repeat(".0", (3-(int)substr_count($tmp[0], "."))), $inetnum);
+			$to = long2ip(ip2long($i)+pow(2,32-$tmp[1]));
+			$inetnum = $i." - ".$to;
+		}
+		//Have InetNum?
 		if($inetnum){
 			echo $inetnum."\t\t".$netname."\n";
 			//Parsing data
 			$range = explode(" - ", $inetnum);
-			$from = ip2long($range[0]);
-			$to = ip2long($range[1]);
-			//Insert record
-			$query = "INSERT INTO ranges (`from`, `to`, `netname`, `descr`, `found`, `date`) VALUES 
-			('".$from."', '".$to."', 
-			'".mysql_real_escape_string($netname)."', 
-			'".mysql_real_escape_string($descr)."', 1, NOW());";
-			$db->query($query);
+			$from = ip2long(trim($range[0]));
+			$to = ip2long(trim($range[1]));
+			$found = 1;
 			$nextIp = long2ip($to+1);
+			//Have From - To?
+			if($from && $to){
+				if($from>$to){
+					die("Something wierd happend. You better check the log!");
+				}
+				//Insert record
+				insertRecord($from, $to, $netname, $descr);
+			//Don't have From - To
+			}else{
+				die("Strange Inetnum: ".$inetnum."\n");
+			}
+		//No inetnum
 		}else{
-			$from = ip2long($ip);
-			$to = ip2long($ip)+256;
-			//Insert record
-			$query = "INSERT INTO ranges (`from`, `to`, `netname`, `descr`, `date`) VALUES 
-			('".$from."', '".$to."', 
-			'".mysql_real_escape_string($netname)."', 
-			'".mysql_real_escape_string($descr)."', NOW());";
-			$db->query($query);
-			$nextIp = long2ip($to);
-			echo "! ".$ip." - ".$nextIp."\t\t".$netname."\n";
+			die("Strange whois record!\n".$result);
 		}
+		//Have nextIp?
+		if($nextIp){
+			whois($nextIp);
+		}else{
+			die("Dont have next IP\n");
+		}
+	//No result
 	}else{
-		die(" Empty result!\n");
+		die("Empty result!\n");
 	}
-	whois($nextIp);
+}
+
+function insertRecord($from, $to, $netname, $descr){
+	global $db;
+	$query = "INSERT INTO ranges (`from`, `to`, `netname`, `descr`, `date`) VALUES 
+	('".$from."', '".$to."', 
+	'".mysql_real_escape_string($netname)."', 
+	'".mysql_real_escape_string($descr)."', NOW());";
+	return $db->query($query);
 }
 
 function get_between($string,$start,$end){

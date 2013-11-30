@@ -13,13 +13,13 @@
 -- Dumping structure for table whoisdb.ranges
 DROP TABLE IF EXISTS `ranges`;
 CREATE TABLE IF NOT EXISTS `ranges` (
-  `id` int(10) NOT NULL AUTO_INCREMENT,
   `from` int(10) NOT NULL DEFAULT '0',
   `to` int(10) NOT NULL DEFAULT '0',
   `netname` varchar(512) DEFAULT NULL,
   `descr` varchar(512) DEFAULT NULL,
+  `found` tinyint(1) NOT NULL DEFAULT '0',
   `date` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  UNIQUE KEY `from_to` (`from`,`to`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1;
 
 -- Data exporting was unselected.
