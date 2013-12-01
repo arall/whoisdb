@@ -2,6 +2,9 @@
 
 include("lib/database.php");
 
+//Delay after IP banned (in seconds)
+define("BAN_SLEEP", 70);
+
 //DB
 $db = new Database("localhost", "root", "", "whoisdb");
 
@@ -41,9 +44,19 @@ function whois($ip){
 	if($ipn>=ip2long("224.0.0.0") && $ipn<=ip2long("239.255.255.255")) $ip = "234.0.0.0";
 	if($ipn>=ip2long("240.0.0.0")) die("\nFinished!\n");
 	//Crazy IP's that have crazy results...
-	if($ipn==ip2long("129.0.0.0")) $ip = "130.0.0.0";
+	if($ip=="129.0.0.0") $ip = "130.0.0.0";
+	if($ip=="137.63.0.0") $ip = "138.0.0.0";
+	if($ip=="155.0.0.0") $ip = "156.0.0.0";
+	if($ip=="132.220.0.0") $ip = "133.0.0.0";
+	if($ip=="156.0.0.0") $ip = "157.0.0.0";
+	if($ip=="160.0.0.0") $ip = "161.0.0.0";
+	if($ip=="165.0.0.0") $ip = "166.0.0.0";
+	if($ip=="169.0.0.0") $ip = "170.0.0.0";
+	if($ip=="179.0.29.1") $ip = "180.0.0.0";
+	if($ip=="181.39.0.1") $ip = "182.0.0.0";
+	if($ip=="186.0.144.1") $ip = "186.1.0.0";
 	//All fine here
-	echo " [+] Grabbing IP ".$ip."\t\t";
+	echo " [+] Grabbing IP ".$ip."\t";
 	//Whois
 	do{
 		$result = shell_exec("whois ".$ip);
@@ -51,8 +64,10 @@ function whois($ip){
 	//Got result?
 	if($result){
 		//Banned
-		if(strstr($result, "access denied for")){
-			die("IP Banned!\n");
+		if(strstr($result, "access denied for") || strstr($result, "Query rate limit exceeded")){
+			echo "IP Banned!\n Sleeping for ".BAN_SLEEP." seconds...\n";
+			sleep(BAN_SLEEP);
+			whois($ip);
 		//Record not found
 		}elseif(strstr($result, "No match") || strstr($result, "Cannot currently process")){
 			echo "No match found\n";
@@ -84,12 +99,11 @@ function whois($ip){
 		}
 		//Have InetNum?
 		if($inetnum){
-			echo $inetnum."\t\t".$netname."\n";
 			//Parsing data
 			$range = explode(" - ", $inetnum);
+			echo trim($range[0])." - ".trim($range[1])."\t\t".$netname;
 			$from = ip2long(trim($range[0]));
 			$to = ip2long(trim($range[1]));
-			$found = 1;
 			$nextIp = long2ip($to+1);
 			//Have From - To?
 			if($from && $to){
@@ -97,7 +111,9 @@ function whois($ip){
 					die("Something wierd happend. You better check the log!");
 				}
 				//Insert record
-				insertRecord($from, $to, $netname, $descr);
+				$res = insertRecord($from, $to, $netname, $descr);
+				if($res) $res = "OK!"; else $res = ":(";
+				echo "\t".$res."\n";
 			//Don't have From - To
 			}else{
 				die("Strange Inetnum: ".$inetnum."\n");
