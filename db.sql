@@ -13,8 +13,8 @@
 -- Dumping structure for table whoisdb.ranges
 DROP TABLE IF EXISTS `ranges`;
 CREATE TABLE IF NOT EXISTS `ranges` (
-  `from` int(10) NOT NULL DEFAULT '0',
-  `to` int(10) NOT NULL DEFAULT '0',
+  `from` int(10) UNSIGNED NOT NULL DEFAULT '0',
+  `to` int(10) UNSIGNED NOT NULL DEFAULT '0',
   `netname` varchar(512) DEFAULT NULL,
   `descr` varchar(512) DEFAULT NULL,
   `found` tinyint(1) NOT NULL DEFAULT '0',

@@ -69,7 +69,7 @@ function whois($ip){
 			sleep(BAN_SLEEP);
 			whois($ip);
 		//Record not found
-		}elseif(strstr($result, "No match") || strstr($result, "Cannot currently process")){
+		}elseif(strstr($result, "No match") || strstr($result, "Cannot currently process") || strstr($result, "Unallocated and unassigned")){
 			echo "No match found\n";
 			$nextIp = long2ip(ip2long($ip)+65536);
 			//Omiting...
